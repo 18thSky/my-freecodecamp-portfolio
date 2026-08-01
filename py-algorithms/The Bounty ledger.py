@@ -1,0 +1,2 @@
+The Scenario:
+The Syndicate has a list of bounties on rival hackers. You need to process the ledger to see who was actually captured, filter out the low-level bounties, take the Syndicate's 20% tax from the payouts, and calculate your net profit.
