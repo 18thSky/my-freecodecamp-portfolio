@@ -2,6 +2,7 @@ class Category:
     def __init__(self,name):
         self.name = name
         self.ledger = []
+
     def deposit(self,amount,description = ""):
         self.ledger.append({"amount": amount, "description": description})
 
@@ -29,9 +30,9 @@ class Category:
     def transfer(self,amount,category):
         if self.check_funds(amount): 
             # Call your own withdraw method
-            self.withdraw(amount,f"Transfer to {self.name}") #BUGGED
+            self.withdraw(amount,f"Withdrawn for {self.name}") 
             # Call the other category's deposit method
-            category.deposit(amount,f"Transfer from {self.name}") #BUGGED
+            category.deposit(amount,f"Transfer from {self.name}") 
             return True
         else:
             return False
@@ -43,10 +44,39 @@ class Category:
         for item in self.ledger:
             desc = item["description"][:23]
             amt = f"{item['amount']:.2f}"
-            output += f"{desc:<23}{amt:>7}/n"
+            output += f"{desc:<23}{amt:>7}\n"
 
         output += F"Total:{self.get_balance():.2f}"
         return output
 
 def create_spend_chart(categories):
-    pass
+    spent_amounts = []
+    for category in categories:
+        tracker = 0
+        for transaction in category.ledger:
+            if transaction["amount"] <= 0:
+                tracker += abs(transaction["amount"])
+        spent_amounts.append(tracker)
+
+    total_spent = sum(spent_amounts)
+    percentages = []
+    for amount in spent_amounts:
+        percent = amount/total_spent * 100
+        rounded_number = int(percent/10) *10
+        percentages.append(rounded_number)
+
+    chart = "Percentage spent by category\n"
+    for i in range(100,-1,-10):
+        chart += f"{i:>3}| "
+        for percent in percentages:
+            if percent >= i:
+                chart += "o  "
+            else:
+                chart +="   "
+        chart += "\n"
+
+    chart = (len(categories)*3) + 1
+    max_length = {} #Part B: The Longest Name
+    
+
+
