@@ -30,9 +30,9 @@ class Category:
     def transfer(self,amount,category):
         if self.check_funds(amount): 
             # Call your own withdraw method
-            self.withdraw(amount,f"Withdrawn for {self.name}") 
+            self.withdraw(amount, f"Transfer to {category.name}")
             # Call the other category's deposit method
-            category.deposit(amount,f"Transfer from {self.name}") 
+            category.deposit(amount, f"Transfer from {self.name}")
             return True
         else:
             return False
@@ -46,7 +46,7 @@ class Category:
             amt = f"{item['amount']:.2f}"
             output += f"{desc:<23}{amt:>7}\n"
 
-        output += F"Total:{self.get_balance():.2f}"
+        output += F"Total: {self.get_balance():.2f}"
         return output
 
 def create_spend_chart(categories):
@@ -75,8 +75,27 @@ def create_spend_chart(categories):
                 chart +="   "
         chart += "\n"
 
-    chart = (len(categories)*3) + 1
-    max_length = {} #Part B: The Longest Name
-    
+    chart += "    " + "-" * ((len(categories) * 3) + 1) + "\n"
 
+    max_length = 0 
+    for category in categories:
+        if len(category.name) > max_length:
+            max_length = len(category.name)
+        
+    for i in range(max_length):
+        # FIX 1: Type exactly FIVE standard spaces here
+        chart += "     "
+        
+        for category in categories:
+            if i < len(category.name):
+                # Type exactly TWO standard spaces after the letter
+                chart += category.name[i] + "  "
+            else:
+                # Type exactly THREE standard spaces here
+                chart += "   "
+                
+        if i < max_length - 1:
+            chart += "\n"
+
+    return chart
 
