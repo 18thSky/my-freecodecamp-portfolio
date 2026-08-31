@@ -19,6 +19,6 @@ class Player(ABC):
         pass
         
 class Pawn(Player):
-    def __init__(self):
-        super().__init__(self)
+    def __init__(self,moves):
+        super().__init__()
         self.moves = moves
