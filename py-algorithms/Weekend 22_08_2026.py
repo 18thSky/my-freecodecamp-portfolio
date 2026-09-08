@@ -839,5 +839,43 @@ def main():
         # Exit with a non-zero Linux failure code
         sys.exit(1)
 
+
+def generate_sql(bugs):
+    with open("bugs.sql", "w", encoding="utf-8") as file:
+        for bug in bugs:
+            title = bug["title"].replace("'", "''")
+
+            priority_qa = (
+                "NULL"
+                if bug["priority_by_qa"] is None
+                else f"'{bug['priority_by_qa']}'"
+            )
+
+            priority_product = (
+                "NULL"
+                if bug["priority_by_product"] is None
+                else f"'{bug['priority_by_product']}'"
+            )
+
+            dev_assigned = (
+                "NULL"
+                if bug["dev_assigned"] is None
+                else f"'{bug['dev_assigned']}'"
+            )
+
+            sql = f"""INSERT INTO bugs
+(id, title, severity, status, priority_by_qa, priority_by_product, dev_assigned)
+VALUES
+({bug["id"]}, '{title}', '{bug["severity"]}', '{bug["status"]}',
+{priority_qa}, {priority_product}, {dev_assigned});
+
+"""
+
+            file.write(sql)
+
+
 if __name__ == "__main__":
+    generate_sql(bugs)
     main()
+
+
