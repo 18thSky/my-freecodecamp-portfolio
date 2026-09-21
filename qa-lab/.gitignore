@@ -1,0 +1,6 @@
+qa_lab.db
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+.venv/
