@@ -1,25 +1,18 @@
-import sqlite3
+import os
 
-DB_NAME = "qa_lab.db"
+import mysql.connector
 
 
 def get_connection():
-    connection = sqlite3.connect(DB_NAME)
-    connection.row_factory = sqlite3.Row
-    return connection
+    return mysql.connector.connect(
+        host=os.environ["DB_HOST"],
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        database=os.environ["DB_NAME"],
+    )
 
 
 def initialize_database():
-    connection = get_connection()
-
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS bugs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            severity TEXT NOT NULL,
-            status TEXT NOT NULL
-        )
-    """)
-
-    connection.commit()
-    connection.close()
+    # The qa_lab.bugs table already exists.
+    # Do not recreate or modify the existing schema.
+    pass

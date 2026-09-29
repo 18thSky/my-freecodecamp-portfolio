@@ -1,52 +1,113 @@
 from fastapi import FastAPI, HTTPException
+
 from database import get_connection, initialize_database
+
 
 app = FastAPI()
 
 initialize_database()
 
 
-VALID_SEVERITIES = {"P0", "P1", "P2", "P3"}
-VALID_STATUSES = {"Open", "Closed"}
+VALID_SEVERITIES = {
+    "Low",
+    "Medium",
+    "High",
+    "Urgent",
+}
+
+VALID_STATUSES = {
+    "Bugged",
+    "Existing Bug",
+    "Non-Recreatable",
+    "Bug verified/QA Pass",
+    "QC Change",
+    "Bug fixed",
+    "New Req",
+    "Not a bug",
+}
+
+OPEN_STATUSES = {
+    "Bugged",
+    "Existing Bug",
+    "Non-Recreatable",
+    "QC Change",
+    "New Req",
+}
 
 
 @app.get("/")
 def health_check():
-    return {"status": "QA Bug API is running"}
+    return {
+        "status": "QA Bug API is running"
+    }
 
 
 @app.get("/bugs")
 def get_bugs():
     connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
 
-    rows = connection.execute(
-        "SELECT id, title, severity, status FROM bugs"
-    ).fetchall()
+    try:
+        cursor.execute(
+            """
+            SELECT
+                id,
+                title,
+                severity,
+                status,
+                priority_by_qa,
+                priority_by_product,
+                dev_assigned
+            FROM bugs
+            ORDER BY id
+            """
+        )
 
-    connection.close()
+        rows = cursor.fetchall()
 
-    return {"bugs": [dict(row) for row in rows]}
+        return {
+            "bugs": rows
+        }
+
+    finally:
+        cursor.close()
+        connection.close()
+
 
 @app.get("/bugs/summary")
 def get_bug_summary():
     connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
 
-    rows = connection.execute(
-        """
-        SELECT severity, COUNT(*) AS count
-        FROM bugs
-        WHERE status = 'Open'
-        GROUP BY severity
-        ORDER BY severity
-        """
-    ).fetchall()
+    try:
+        cursor.execute(
+            """
+            SELECT
+                severity,
+                COUNT(*) AS count
+            FROM bugs
+            WHERE status IN (
+                'Bugged',
+                'Existing Bug',
+                'Non-Recreatable',
+                'QC Change',
+                'New Req'
+            )
+            GROUP BY severity
+            ORDER BY severity
+            """
+        )
 
-    connection.close()
+        rows = cursor.fetchall()
 
-    return {
-        row["severity"]: row["count"]
-        for row in rows
-    }
+        return {
+            row["severity"]: row["count"]
+            for row in rows
+        }
+
+    finally:
+        cursor.close()
+        connection.close()
 
 
 @app.post("/bugs", status_code=201)
@@ -55,34 +116,70 @@ def create_bug(bug: dict):
     severity = bug.get("severity")
     status = bug.get("status")
 
-    if not title:
-        raise HTTPException(status_code=400, detail="Title is required")
+    if not title or not title.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Title is required"
+        )
 
     if severity not in VALID_SEVERITIES:
-        raise HTTPException(status_code=400, detail="Invalid severity")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid severity"
+        )
 
     if status not in VALID_STATUSES:
-        raise HTTPException(status_code=400, detail="Invalid status")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid status"
+        )
 
     connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
 
-    cursor = connection.execute(
-        """
-        INSERT INTO bugs (title, severity, status)
-        VALUES (?, ?, ?)
-        """,
-        (title, severity, status),
-    )
+    try:
+        # The existing MySQL table does not use AUTO_INCREMENT.
+        # Generate the next ID explicitly.
+        cursor.execute(
+            """
+            SELECT COALESCE(MAX(id), 0) + 1 AS next_id
+            FROM bugs
+            """
+        )
 
-    connection.commit()
+        next_id = cursor.fetchone()["next_id"]
 
-    bug_id = cursor.lastrowid
+        cursor.execute(
+            """
+            INSERT INTO bugs (
+                id,
+                title,
+                severity,
+                status
+            )
+            VALUES (%s, %s, %s, %s)
+            """,
+            (
+                next_id,
+                title.strip(),
+                severity,
+                status,
+            ),
+        )
 
-    connection.close()
+        connection.commit()
 
-    return {
-        "id": bug_id,
-        "title": title,
-        "severity": severity,
-        "status": status,
-    }
+        return {
+            "id": next_id,
+            "title": title.strip(),
+            "severity": severity,
+            "status": status,
+        }
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        cursor.close()
+        connection.close()
