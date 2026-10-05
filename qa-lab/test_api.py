@@ -125,12 +125,98 @@ def test_summary():
 
     summary = response.json()
 
-    assert isinstance(summary, dict)
+    assert summary == {
+        "High": 5,
+        "Low": 9,
+        "Medium": 16,
+    }
 
-    assert "High" in summary
-    assert "Low" in summary
-    assert "Medium" in summary
+    assert all(
+        isinstance(count, int)
+        for count in summary.values()
+    )
 
-    assert summary["High"] == 5
-    assert summary["Low"] >= 8
-    assert summary["Medium"] == 16
+def test_summary_excludes_closed_status():
+    connection = get_connection()
+    cursor = connection.cursor()
+    test_id = None
+
+    try:
+        cursor.execute(
+            """
+            SELECT COALESCE(MAX(id), 0) + 1 AS test_id
+            FROM bugs
+            """
+        )
+
+        test_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            INSERT INTO bugs (
+                id,
+                title,
+                severity,
+                status
+            )
+            VALUES (%s, %s, %s, %s)
+            """,
+            (
+                test_id,
+                "Closed status summary test",
+                "Urgent",
+                "Bug fixed",
+            ),
+        )
+
+        connection.commit()
+
+        response = client.get("/bugs/summary")
+
+        assert response.status_code == 200
+
+        summary = response.json()
+
+        assert "Urgent" not in summary
+
+    finally:
+        if test_id is not None:
+            cursor.execute(
+                "DELETE FROM bugs WHERE id = %s",
+                (test_id,),
+            )
+            connection.commit()
+
+        cursor.close()
+        connection.close()
+
+def test_summary_empty_result(monkeypatch):
+    class FakeCursor:
+        def execute(self, query):
+            pass
+
+        def fetchall(self):
+            return []
+
+        def close(self):
+            pass
+
+    class FakeConnection:
+        def cursor(self, dictionary=True):
+            return FakeCursor()
+
+        def close(self):
+            pass
+
+    def fake_get_connection():
+        return FakeConnection()
+
+    monkeypatch.setattr(
+        "app.get_connection",
+        fake_get_connection,
+    )
+
+    response = client.get("/bugs/summary")
+
+    assert response.status_code == 200
+    assert response.json() == {}

@@ -105,10 +105,18 @@ def get_bug_summary():
             for row in rows
         }
 
-    finally:
-        cursor.close()
-        connection.close()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve bug summary"
+        ) from exc
 
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+        if connection is not None:
+            connection.close()
 
 @app.post("/bugs", status_code=201)
 def create_bug(bug: dict):

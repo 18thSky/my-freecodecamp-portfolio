@@ -3,7 +3,7 @@
 > **Project:** QA Bug API Lab  
 > **Purpose:** Practical QA / backend / Linux / SQL / API / pytest / Git workflow  
 > **Final architecture:** Windows/VS Code → Linux VM → FastAPI → MySQL → `qa_lab` → Postman → pytest → Linux logs/exit codes → Git  
-> **Documentation scope:** Everything completed in this lab up to the GitHub push on September 21, 2026.
+> **Documentation scope:** Complete QA Lab build, migration, hardening, quality-gate work, and portfolio integration through October 5, 2026.
 
 ---
 
@@ -1336,3 +1336,337 @@ GitHub
 ```
 
 The QA Lab is now integrated into the master FreeCodeCamp portfolio repository and the working tree is clean.
+
+
+---
+
+# 42. October 5, 2026 — Weekend Quality-Gate Lab
+
+This checkpoint extended the existing `qa_lab` rather than creating a new project, framework, or database.
+
+Objective:
+
+```text
+Specification
+→ SQL ground truth
+→ bounded implementation
+→ deterministic tests
+→ Linux quality gate
+→ real HTTP verification
+→ AI evaluation
+→ human approval
+→ portfolio documentation
+```
+
+## 42.1 Specification
+
+Target endpoint:
+
+```text
+GET /bugs/summary
+```
+
+Contract:
+
+- no request body
+- no query parameters
+- return open-bug counts grouped by severity
+- counts are integers
+- only the defined open statuses are included
+- closed/non-open statuses are excluded
+- no matching rows return `{}`
+- database/runtime failures must not silently become an empty successful response
+- existing endpoints remain unaffected
+- no schema, dependency, authentication, or unrelated-code changes
+
+Open statuses:
+
+```text
+Bugged
+Existing Bug
+Non-Recreatable
+QC Change
+New Req
+```
+
+The normative API contract is maintained in `SUMMARY_API_SPEC.md`.
+
+## 42.2 SQL Ground Truth
+
+Independent MySQL verification used:
+
+```sql
+SELECT
+    severity,
+    COUNT(*)
+FROM bugs
+WHERE status IN (
+    'Bugged',
+    'Existing Bug',
+    'Non-Recreatable',
+    'QC Change',
+    'New Req'
+)
+GROUP BY severity;
+```
+
+Ground truth:
+
+```text
+High   = 5
+Low    = 9
+Medium = 16
+```
+
+Total open bugs:
+
+```text
+30
+```
+
+## 42.3 Bounded Implementation
+
+The change was deliberately limited to the existing lab.
+
+Allowed files:
+
+```text
+app.py
+test_api.py
+database.py only if strictly required
+```
+
+Constraints:
+
+- smallest practical change
+- preserve SQL and response contract
+- no schema changes
+- no new dependencies
+- no unrelated endpoint changes
+- no persistent test data
+- no credential changes
+
+`GET /bugs/summary` was hardened with explicit connection/cursor cleanup and controlled HTTP 500 behavior for unexpected runtime/database failures. The SQL itself was preserved.
+
+For this controlled lab, the broad exception boundary is acceptable. Production code should normally catch specific database/runtime exceptions where appropriate.
+
+## 42.4 Deterministic Testing
+
+The summary test was strengthened to assert the exact response:
+
+```json
+{
+    "High": 5,
+    "Low": 9,
+    "Medium": 16
+}
+```
+
+It also verifies integer values.
+
+Additional tests verify:
+
+### Closed-status exclusion
+
+A temporary `Urgent` / `Bug fixed` row was inserted, the endpoint was called, and `Urgent` was confirmed absent. The row was cleaned up and independently verified to be absent afterward.
+
+### Empty result
+
+A deterministic `monkeypatch` fake database result verifies:
+
+```json
+{}
+```
+
+without modifying the real MySQL database.
+
+## 42.5 Quality Gate
+
+Final Linux test result:
+
+```text
+10 passed, 1 warning
+```
+
+The warning was an unrelated Starlette/AnyIO deprecation warning.
+
+Python compilation was also verified with:
+
+```bash
+python -m compileall app.py test_api.py database.py
+```
+
+No compilation errors were reported.
+
+Real HTTP verification through Uvicorn and curl returned:
+
+```json
+{"High":5,"Low":9,"Medium":16}
+```
+
+This matched the independent SQL result.
+
+## 42.6 AI Evaluation
+
+The completed implementation was evaluated against the agreed specification without further modification.
+
+Result:
+
+```text
+12 / 12 criteria PASS
+```
+
+Criteria included exact counts, integer values, open-status filtering, empty-result behavior, schema preservation, regression coverage, response-contract preservation, failure handling, dependency preservation, test-data cleanup, compilation, and real HTTP/SQL agreement.
+
+## 42.7 Human Approval
+
+Final approval checkpoint:
+
+```text
+SPECIFICATION       PASS
+IMPLEMENTATION      PASS
+DETERMINISTIC TESTS PASS
+QUALITY GATE        PASS
+AI EVALUATION       12/12 PASS
+HUMAN APPROVAL      APPROVED
+```
+
+---
+
+# 43. October 5, 2026 — Windows Portfolio Integration
+
+Linux remains the execution/testing environment.
+
+Windows remains the source-control and portfolio environment:
+
+```text
+C:\Users\akash\my-freecodecamp-portfolio
+```
+
+Only the verified changed files were exported from Linux:
+
+```text
+app.py
+test_api.py
+```
+
+They were transferred through the existing VirtualBox Windows Downloads shared folder and copied into `qa-lab`.
+
+The documentation is being updated on Windows so the final development record is committed with the code.
+
+No blind `git add .` workflow is being used.
+
+---
+
+# 44. Week Progress — Engineering Learning
+
+This week's progression moved from making an API work toward running a complete quality-gate workflow:
+
+```text
+API implementation
+→ database integration
+→ SQL ground truth
+→ specification
+→ bounded change
+→ deterministic testing
+→ real HTTP verification
+→ AI evaluation
+→ human approval
+→ portfolio documentation
+```
+
+Key concepts reinforced:
+
+- Python functions and exception handling
+- FastAPI route behavior
+- MySQL connectivity
+- SQL filtering and aggregation
+- `WHERE` and grouped aggregation
+- API response contracts
+- positive and negative testing
+- deterministic tests
+- test isolation and cleanup
+- monkeypatching
+- Linux virtual environments
+- real HTTP vs in-process `TestClient`
+- Git scope control
+- least-privilege database access
+- separation of concerns
+- reproducibility
+- AI-assisted engineering review
+
+The important capability shift is:
+
+```text
+"write code → see if it works"
+```
+
+to:
+
+```text
+specification
+→ implementation
+→ deterministic evidence
+→ independent verification
+→ quality gate
+→ review
+→ approval
+→ documented portfolio change
+```
+
+---
+
+# 45. Current Checkpoint — October 5, 2026
+
+```text
+Specification             100%
+SQL ground truth          100%
+Pre-change inspection     100%
+Bounded implementation    100%
+Deterministic tests       100%
+Linux quality gate       100%
+Real HTTP verification    100%
+AI evaluation             100%
+Human approval            100%
+Windows export            100%
+Documentation update      100%
+Windows Git verification    NEXT
+Git commit + push           NEXT
+```
+
+Current lab completion before final Windows Git operations:
+
+```text
+~95%
+```
+
+Remaining:
+
+```text
+Windows git diff
+→ final checks
+→ git diff --check
+→ stage intended files only
+→ commit
+→ push
+→ verify clean working tree
+```
+
+---
+
+# 46. Next Engineering Improvements
+
+The existing future-work list remains valid:
+
+1. Replace `bug: dict` with a Pydantic request model.
+2. Add stronger API response validation.
+3. Improve test isolation with fixtures/transactions or a dedicated test database.
+4. Add malformed-request tests.
+5. Improve concurrency-safe ID generation.
+6. Add CI execution through GitHub Actions.
+7. Add Linux shell automation around the quality gate.
+8. Add structured application logging.
+9. Add API contract testing.
+10. Build a small deterministic evaluator comparing expected API behavior with test results.
+
+These remain future improvements unless explicitly completed later.
