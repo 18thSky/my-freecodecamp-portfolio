@@ -1,6 +1,6 @@
 def to_binary(decimal):
     if not isinstance(decimal,int):
-        return "Number should be postive"
+        return "Number should be positive"
     if decimal == 0:
             return "0"
     binary_result = ""
