@@ -1670,3 +1670,72 @@ The existing future-work list remains valid:
 10. Build a small deterministic evaluator comparing expected API behavior with test results.
 
 These remain future improvements unless explicitly completed later.
+
+---
+
+# 47. Evaluator Golden-Case Review — October 12, 2026
+
+## Environment and quality gate
+
+- Environment used for execution: Linux VM, Python 3.12.3, project virtual environment.
+- MySQL connection: verified successfully.
+- Automated tests: 10 passed, with 1 Starlette/AnyIO deprecation warning.
+- The test suite was run twice; both runs passed.
+- Independent SQL ground truth for open bugs: High = 5, Low = 9, Medium = 16.
+- Live `GET /bugs/summary` response: HTTP 200 with `{"High":5,"Low":9,"Medium":16}`.
+- SQL counts and the live API response matched.
+- `git diff --check` produced no output in the Linux project directory. This was not a verification of the Windows repository diff.
+
+## Golden cases reviewed
+
+### Case A — Dictionary comprehension
+
+```python
+rows = cursor.fetchall()
+return {row["severity"]: row["count"] for row in rows}
+```
+
+**Verdict: CONDITIONAL PASS**
+
+- Empty rows produce `{}`.
+- The snippet alone does not prove that SQL filters to open statuses.
+- The snippet alone does not establish database/runtime error handling.
+
+### Case B — Broad exception converted to empty success
+
+```python
+try:
+    rows = cursor.fetchall()
+except Exception:
+    return {}
+```
+
+**Verdict: FAIL**
+
+- A fetch exception is converted into an empty response.
+- A database/runtime failure could be misrepresented as a valid empty result.
+- This violates the summary API contract.
+
+### Case C — Destructive shared-database test setup
+
+```python
+cursor.execute("TRUNCATE TABLE bugs")
+```
+
+**Verdict: FAIL for the shared database**
+
+- The statement removes all rows from the table.
+- It is unsafe for test setup against shared project data.
+- Prefer a mock or an isolated test database.
+
+## Evaluator assessment
+
+**Manual review score: 6/6 review criteria passed.**
+
+This score describes the assistant's review of the three supplied snippets. It is not an independent benchmark of a separate AI evaluator. No tests or database queries were executed as part of the hypothetical snippet review.
+
+## Remaining work
+
+- Complete the final quality gate and inspect the authoritative Windows Git repository.
+- Stage only intended documentation changes.
+- Consider GitHub Actions after local verification. MySQL-dependent CI must use an isolated test database.
