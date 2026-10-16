@@ -1,0 +1,7 @@
+def count(text, parameter):
+    match_count = 0
+    for i in range (len(text)):
+        chunk = text[i: i+len(parameter)]
+        if chunk == parameter:
+            match_count +=1
+    return match_count
