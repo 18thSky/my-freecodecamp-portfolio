@@ -30,37 +30,42 @@ def test_get_bugs():
 
 def test_create_valid_bug():
     title = "Automated MySQL integration test bug"
-
-    response = client.post(
-        "/bugs",
-        json={
-            "title": title,
-            "severity": "Low",
-            "status": "Bugged",
-        },
-    )
-
-    assert response.status_code == 201
-
-    data = response.json()
-
-    assert data["title"] == title
-    assert data["severity"] == "Low"
-    assert data["status"] == "Bugged"
-    assert isinstance(data["id"], int)
-
-    connection = get_connection()
-    cursor = connection.cursor()
+    created_id = None
 
     try:
-        cursor.execute(
-            "DELETE FROM bugs WHERE id = %s",
-            (data["id"],),
+        response = client.post(
+            "/bugs",
+            json={
+                "title": title,
+                "severity": "Low",
+                "status": "Bugged",
+            },
         )
-        connection.commit()
+
+        assert response.status_code == 201
+
+        data = response.json()
+        created_id = data.get("id")
+
+        assert data["title"] == title
+        assert data["severity"] == "Low"
+        assert data["status"] == "Bugged"
+        assert isinstance(created_id, int)
+
     finally:
-        cursor.close()
-        connection.close()
+        if created_id is not None:
+            connection = get_connection()
+            cursor = connection.cursor()
+
+            try:
+                cursor.execute(
+                    "DELETE FROM bugs WHERE id = %s",
+                    (created_id,),
+                )
+                connection.commit()
+            finally:
+                cursor.close()
+                connection.close()
 
 
 def test_invalid_severity():
@@ -136,64 +141,66 @@ def test_summary():
         for count in summary.values()
     )
 
-def test_summary_excludes_closed_status():
-    connection = get_connection()
-    cursor = connection.cursor()
-    test_id = None
 
-    try:
-        cursor.execute(
-            """
-            SELECT COALESCE(MAX(id), 0) + 1 AS test_id
-            FROM bugs
-            """
-        )
+def test_summary_excludes_closed_status(monkeypatch):
+    class FakeCursor:
+        def __init__(self):
+            self.query = ""
 
-        test_id = cursor.fetchone()[0]
+        def execute(self, query, params=None):
+            self.query = query
 
-        cursor.execute(
-            """
-            INSERT INTO bugs (
-                id,
-                title,
-                severity,
-                status
-            )
-            VALUES (%s, %s, %s, %s)
-            """,
-            (
-                test_id,
-                "Closed status summary test",
-                "Urgent",
-                "Bug fixed",
-            ),
-        )
+        def fetchall(self):
+            return [{"severity": "High", "count": 2}]
 
-        connection.commit()
+        def close(self):
+            pass
 
-        response = client.get("/bugs/summary")
+    class FakeConnection:
+        def __init__(self):
+            self.fake_cursor = FakeCursor()
 
-        assert response.status_code == 200
+        def cursor(self, dictionary=False):
+            return self.fake_cursor
 
-        summary = response.json()
+        def close(self):
+            pass
 
-        assert "Urgent" not in summary
+    fake_connection = FakeConnection()
 
-    finally:
-        if test_id is not None:
-            cursor.execute(
-                "DELETE FROM bugs WHERE id = %s",
-                (test_id,),
-            )
-            connection.commit()
+    monkeypatch.setattr(
+        "app.get_connection",
+        lambda: fake_connection,
+    )
 
-        cursor.close()
-        connection.close()
+    response = client.get("/bugs/summary")
+
+    assert response.status_code == 200
+    assert response.json() == {"High": 2}
+
+    query = " ".join(fake_connection.fake_cursor.query.split())
+
+    expected_open_statuses = [
+        "Bugged",
+        "Existing Bug",
+        "Non-Recreatable",
+        "QC Change",
+        "New Req",
+    ]
+
+    assert "WHERE status IN" in query
+
+    for status in expected_open_statuses:
+        assert f"'{status}'" in query
+
+    assert "'Bug fixed'" not in query
+    assert "'Bug verified'" not in query
+
 
 def test_summary_empty_result(monkeypatch):
     class FakeCursor:
-        def execute(self, query):
-            pass
+        def execute(self, query, params=None):
+            self.query = query
 
         def fetchall(self):
             return []
@@ -202,24 +209,22 @@ def test_summary_empty_result(monkeypatch):
             pass
 
     class FakeConnection:
-        def cursor(self, dictionary=True):
+        def cursor(self, dictionary=False):
             return FakeCursor()
 
         def close(self):
             pass
 
-    def fake_get_connection():
-        return FakeConnection()
-
     monkeypatch.setattr(
         "app.get_connection",
-        fake_get_connection,
+        lambda: FakeConnection(),
     )
 
     response = client.get("/bugs/summary")
 
     assert response.status_code == 200
     assert response.json() == {}
+
 
 def test_summary_controlled_aggregation(monkeypatch):
     controlled_bugs = [
@@ -237,9 +242,10 @@ def test_summary_controlled_aggregation(monkeypatch):
     }
 
     class FakeCursor:
-        query = ""
+        def __init__(self):
+            self.query = ""
 
-        def execute(self, query):
+        def execute(self, query, params=None):
             self.query = query
 
         def fetchall(self):
@@ -266,7 +272,7 @@ def test_summary_controlled_aggregation(monkeypatch):
             pass
 
     class FakeConnection:
-        def cursor(self, dictionary=True):
+        def cursor(self, dictionary=False):
             return FakeCursor()
 
         def close(self):
