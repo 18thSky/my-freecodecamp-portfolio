@@ -1739,3 +1739,88 @@ This score describes the assistant's review of the three supplied snippets. It i
 - Complete the final quality gate and inspect the authoritative Windows Git repository.
 - Stage only intended documentation changes.
 - Consider GitHub Actions after local verification. MySQL-dependent CI must use an isolated test database.
+
+---
+
+# 48. Weekend Lab — Bug Summary Verification (October 17, 2026)
+
+## Objective
+
+Verify that `GET /bugs/summary` counts open bugs by severity and excludes non-open statuses.
+
+## Open statuses
+
+- `Bugged`
+- `Existing Bug`
+- `Non-Recreatable`
+- `QC Change`
+- `New Req`
+
+## Independent SQL result
+
+The query against `qa_lab.bugs` grouped records by severity after filtering to the open statuses.
+
+Observed results on October 17, 2026:
+
+| Severity | Count |
+|---|---:|
+| High | 5 |
+| Low | 9 |
+| Medium | 16 |
+| Total open bugs | 30 |
+
+## Live API verification
+
+The Linux VM API was checked with:
+
+```bash
+curl -i http://127.0.0.1:8000/bugs/summary
+```
+
+Observed response:
+
+```text
+HTTP/1.1 200 OK
+content-type: application/json
+```
+
+```json
+{"High":5,"Low":9,"Medium":16}
+```
+
+The response matched the independent SQL result.
+
+## Controlled aggregation test
+
+Added `test_summary_controlled_aggregation` to `test_api.py`. It uses three controlled example records: two open bugs with different severities and one closed bug. It expects exactly `{"High": 1, "Low": 1}`.
+
+**Test limitation:** the controlled test uses a mocked cursor and calculates its example counts in Python. It checks that the SQL contains the open-status filter, but it does not execute the aggregation query against MySQL. The independent SQL query and live API request provide separate real-database verification.
+
+## Automated test results
+
+With the required database environment variables set in the Linux VM:
+
+```text
+11 passed, 1 warning
+```
+
+The controlled aggregation and empty-result tests also passed together:
+
+```text
+2 passed, 1 warning
+```
+
+The warning was a Starlette/AnyIO deprecation warning, not a test failure.
+
+A separate run without database environment variables failed four database-dependent tests with `KeyError: 'DB_HOST'`. That run is an environment-configuration failure and is not the successful quality-gate result.
+
+## Completion checklist
+
+- [x] Independent SQL aggregation verified.
+- [x] Linux API verified with curl.
+- [x] SQL and API results matched.
+- [x] Controlled aggregation test added.
+- [x] Empty-result test passed.
+- [x] Full pytest suite passed with database environment configured.
+- [x] Git whitespace check passed.
+- [ ] Documentation and test changes committed and pushed.

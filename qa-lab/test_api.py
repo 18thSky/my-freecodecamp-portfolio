@@ -220,3 +220,67 @@ def test_summary_empty_result(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {}
+
+def test_summary_controlled_aggregation(monkeypatch):
+    controlled_bugs = [
+        {"severity": "High", "status": "Bugged"},
+        {"severity": "Low", "status": "Existing Bug"},
+        {"severity": "High", "status": "Bug fixed"},
+    ]
+
+    open_statuses = {
+        "Bugged",
+        "Existing Bug",
+        "Non-Recreatable",
+        "QC Change",
+        "New Req",
+    }
+
+    class FakeCursor:
+        query = ""
+
+        def execute(self, query):
+            self.query = query
+
+        def fetchall(self):
+            normalized_query = " ".join(self.query.split())
+
+            assert "WHERE status IN" in normalized_query
+
+            for status in open_statuses:
+                assert f"'{status}'" in normalized_query
+
+            counts = {}
+
+            for bug in controlled_bugs:
+                if bug["status"] in open_statuses:
+                    severity = bug["severity"]
+                    counts[severity] = counts.get(severity, 0) + 1
+
+            return [
+                {"severity": severity, "count": count}
+                for severity, count in sorted(counts.items())
+            ]
+
+        def close(self):
+            pass
+
+    class FakeConnection:
+        def cursor(self, dictionary=True):
+            return FakeCursor()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(
+        "app.get_connection",
+        lambda: FakeConnection(),
+    )
+
+    response = client.get("/bugs/summary")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "High": 1,
+        "Low": 1,
+    }
