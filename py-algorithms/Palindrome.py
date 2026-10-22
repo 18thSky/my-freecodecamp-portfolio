@@ -5,7 +5,7 @@ def ispalindrome(word):
         return 'Cannot be empty'
     
     word = word.lower()
-    reversed_word = word[[:-1]]
+    reversed_word = word[::-1]
 
     return word == reversed_word
 
