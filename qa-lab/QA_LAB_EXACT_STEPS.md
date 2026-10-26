@@ -1824,3 +1824,94 @@ A separate run without database environment variables failed four database-depen
 - [x] Full pytest suite passed with database environment configured.
 - [x] Git whitespace check passed.
 - [ ] Documentation and test changes committed and pushed.
+
+---
+
+# 49. Weekend Lab — POST Request Validation (October 26, 2026)
+
+## Objective
+
+Extend the QA lab with deterministic tests for malformed and non-object JSON request bodies, preserve existing validation behavior, and verify the full test suite.
+
+## Environment
+
+Tests were run in the Linux VM at `/home/sky/qa-lab`.
+
+- Python: 3.12.3
+- pytest: 9.1.1
+- Application: FastAPI QA Bug API
+- Endpoint under test: `POST /bugs`
+
+The existing `create_bug(bug: dict)` route uses manual validation for title, severity, and status. Database access begins after these business validations.
+
+## Observed request-body behavior
+
+A read-only probe was run against the current application before changing `app.py`.
+
+| Request body | Observed HTTP status | Observed response |
+|---|---:|---|
+| Malformed JSON (`{"title":`) | 422 | Framework JSON decoding error, type `json_invalid` |
+| JSON array (`[]`) | 422 | Framework reports that a dictionary is required |
+| JSON string (`"hello"`) | 422 | Framework reports that a dictionary is required |
+| JSON `null` | 422 | Framework reports a missing body |
+| Empty object (`{}`) | 400 | `{"detail":"Title is required"}` |
+
+The malformed and non-object request cases returned validation errors rather than successful creation responses. The inspected route performs business validation before opening the database connection.
+
+## Test changes
+
+Added the following coverage to `test_api.py`:
+
+- `test_post_bugs_rejects_malformed_json`
+- `test_post_bugs_rejects_non_object_json`, parametrized for JSON arrays, strings, and `null`
+
+The tests assert the observed HTTP 422 response and stable properties of the framework-generated error structure. They do not assert the complete error body.
+
+Existing tests continue to cover:
+
+- Missing title
+- Whitespace-only title
+- Invalid severity
+- Invalid status
+- Valid bug creation and cleanup
+
+The empty-object case remains covered by the existing missing-title test; no duplicate empty-object test was added.
+
+`app.py` was not changed during this lab.
+
+## Automated test results
+
+The targeted validation tests passed:
+
+```text
+8 passed, 7 deselected, 1 warning
+```
+
+The complete test file passed in the Linux VM:
+
+```text
+15 passed, 1 warning
+```
+
+The warning was the existing Starlette/AnyIO deprecation warning concerning `anyio.abc.BlockingPortal`. It did not cause a test failure.
+
+## Test evidence and limitations
+
+- The malformed JSON, array, string, and `null` responses were observed using FastAPI's `TestClient`.
+- The new invalid-body tests do not intentionally create bug records.
+- No independent database query was run to prove that every invalid request left the table unchanged.
+- The successful valid-creation test uses the configured MySQL database and cleans up its created record in a `finally` block.
+- Results document the current observed behavior; they do not establish a new public API contract for every framework-generated error detail.
+
+## Completion checklist
+
+- [x] Inspected the existing `POST /bugs` implementation and validation tests.
+- [x] Captured malformed JSON and non-object request behavior before editing.
+- [x] Added tests for malformed JSON, arrays, strings, and `null`.
+- [x] Preserved existing business-validation tests.
+- [x] Left `app.py` unchanged.
+- [x] Targeted validation tests passed.
+- [x] Full test file passed: 15 tests.
+- [x] Transfer the updated test file and documentation to the authoritative Windows repository.
+- [x] Review the final diff and repository status.
+- [ ] Commit and push only after review.

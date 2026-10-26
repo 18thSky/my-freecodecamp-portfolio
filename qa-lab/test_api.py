@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app import app
@@ -121,6 +122,40 @@ def test_empty_title():
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Title is required"
+
+
+def test_post_bugs_rejects_malformed_json():
+    response = client.post(
+        "/bugs",
+        content='{"title":',
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422
+
+    detail = response.json()["detail"]
+    assert isinstance(detail, list)
+    assert detail[0]["type"] == "json_invalid"
+    assert detail[0]["loc"][0] == "body"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param([], id="json-array"),
+        pytest.param("hello", id="json-string"),
+        pytest.param(None, id="json-null"),
+    ],
+)
+def test_post_bugs_rejects_non_object_json(body):
+    response = client.post("/bugs", json=body)
+
+    assert response.status_code == 422
+
+    detail = response.json()["detail"]
+    assert isinstance(detail, list)
+    assert len(detail) >= 1
+    assert detail[0]["loc"][0] == "body"
 
 
 def test_summary():
