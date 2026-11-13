@@ -325,3 +325,71 @@ def test_summary_controlled_aggregation(monkeypatch):
         "High": 1,
         "Low": 1,
     }
+
+@pytest.mark.parametrize(
+    "request_kwargs, expected_status",
+    [
+        pytest.param(
+            {
+                "content": '{"title":',
+                "headers": {"content-type": "application/json"},
+            },
+            422,
+            id="malformed-json",
+        ),
+        pytest.param({"json": []}, 422, id="json-array"),
+        pytest.param({"json": "hello"}, 422, id="json-string"),
+        pytest.param({"json": None}, 422, id="json-null"),
+        pytest.param(
+            {
+                "json": {
+                    "title": "Invalid severity",
+                    "severity": "P7",
+                    "status": "Bugged",
+                }
+            },
+            400,
+            id="invalid-severity",
+        ),
+        pytest.param(
+            {
+                "json": {
+                    "title": "Invalid status",
+                    "severity": "Low",
+                    "status": "Open",
+                }
+            },
+            400,
+            id="invalid-status",
+        ),
+        pytest.param(
+            {"json": {"severity": "Low", "status": "Bugged"}},
+            400,
+            id="missing-title",
+        ),
+	pytest.param(
+    {
+        "json": {
+            "title": "   ",
+            "severity": "Low",
+            "status": "Bugged",
+        }
+    },
+    400,
+    id="empty-title",
+),
+    ],
+)
+def test_invalid_post_requests_do_not_connect_to_database(
+    monkeypatch,
+    request_kwargs,
+    expected_status,
+):
+    def fail_if_called():
+        pytest.fail("Invalid POST request attempted a database connection")
+
+    monkeypatch.setattr("app.get_connection", fail_if_called)
+
+    response = client.post("/bugs", **request_kwargs)
+
+    assert response.status_code == expected_status

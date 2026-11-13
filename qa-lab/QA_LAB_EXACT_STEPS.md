@@ -1915,3 +1915,130 @@ The warning was the existing Starlette/AnyIO deprecation warning concerning `any
 - [x] Transfer the updated test file and documentation to the authoritative Windows repository.
 - [x] Review the final diff and repository status.
 - [ ] Commit and push only after review.
+
+
+---
+
+# 50. Weekend Lab — Invalid POST Requests: Database Connection Isolation (November 13, 2026)
+
+## Objective
+
+Verify that invalid `POST /bugs` requests are rejected before the application attempts to establish a database connection.
+
+Because no disposable database could be positively identified, this lab uses a mocked database-connection guard rather than real database record-count verification.
+
+## Environment
+
+Tests were run in the Linux VM at `/home/sky/qa-lab`.
+
+- Python: 3.12.3
+- pytest: 9.1.1
+- Application: FastAPI QA Bug API
+- Endpoint under test: `POST /bugs`
+
+The authoritative repository is maintained on Windows:
+
+- Repository: `18thSky/my-freecodecamp-portfolio`
+- Branch: `main`
+
+## Database safety investigation
+
+The Linux VM has a local MySQL 8.0.46 service.
+
+The database inspection showed:
+
+- `information_schema`
+- `performance_schema`
+- `racing_game`
+
+The `racing_game` database is protected and was not used.
+
+No disposable database was positively identified.
+
+The following database environment variables were checked without exposing credentials:
+
+- `DB_HOST`: not set
+- `DB_USER`: not set
+- `DB_NAME`: not set
+
+The password value was not printed.
+
+No shared database or protected database was modified.
+
+## Test implementation
+
+Added the parameterized test:
+
+`test_invalid_post_requests_do_not_connect_to_database`
+
+The test patches `app.get_connection` with a guard function that calls `pytest.fail()` if the route attempts to establish a database connection.
+
+The test covers eight invalid request cases:
+
+| Case | Expected HTTP status |
+|---|---:|
+| Malformed JSON | 422 |
+| JSON array | 422 |
+| JSON string | 422 |
+| JSON `null` | 422 |
+| Invalid severity | 400 |
+| Invalid status | 400 |
+| Missing title | 400 |
+| Empty/whitespace-only title | 400 |
+
+The test verifies both the expected response status and that the database connection function is not called.
+
+`app.py` was not modified.
+
+## Automated test results
+
+Focused connection-guard test:
+
+```text
+8 passed, 1 warning in 0.38s
+```
+
+Safe regression test selection:
+
+```text
+20 passed, 3 deselected, 1 warning in 0.48s
+```
+
+The three deselected tests are database-dependent tests.
+
+The warning was the existing Starlette/AnyIO deprecation warning:
+
+```text
+anyio.abc.BlockingPortal alias is deprecated,
+use anyio.from_thread.BlockingPortal instead.
+```
+
+It did not cause a test failure.
+
+## Verification scope and limitations
+
+- All eight invalid request cases passed.
+- The connection guard demonstrated that these invalid requests stop before the database connection layer.
+- The safe regression selection passed.
+- Three database-dependent tests were deliberately excluded.
+- No real database record-count comparison was performed.
+- Therefore, this lab does not claim to prove that database records remained unchanged through an actual database transaction.
+- Actual record-count verification remains pending until a disposable database is positively identified.
+
+## Completion checklist
+
+- [x] Inspected the existing POST validation behavior.
+- [x] Investigated database environment and available local databases.
+- [x] Confirmed that no disposable database was available.
+- [x] Added the parameterized database-connection guard test.
+- [x] Covered all eight invalid request cases.
+- [x] Kept `app.py` unchanged.
+- [x] Focused test passed: 8 cases.
+- [x] Safe regression selection passed: 20 tests.
+- [x] Transferred updated `test_api.py` to the authoritative Windows repository.
+- [x] Reviewed the transferred test file and formatting.
+- [x] Append this section to the authoritative documentation.
+- [ ] Review final changes and repository status.
+- [ ] Commit and push the two QA Lab files.
+- [ ] Verify local and remote `main` are synchronized.
+- [ ] Perform real database record-count verification when a disposable database becomes available.
