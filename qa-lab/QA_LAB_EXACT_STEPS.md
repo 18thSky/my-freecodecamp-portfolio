@@ -2042,3 +2042,27 @@ It did not cause a test failure.
 - [ ] Commit and push the two QA Lab files.
 - [ ] Verify local and remote `main` are synchronized.
 - [ ] Perform real database record-count verification when a disposable database becomes available.
+
+## Objective 3 — Dependency Reproducibility (17 November 2026)
+
+### Changes
+- Pinned the five direct Python dependencies in `requirements.txt`.
+- Created `requirements-lock.txt` with 25 pinned packages, including transitive dependencies.
+- Added `.venv-repro/` to `.gitignore`.
+- Preserved the existing application and database implementation.
+
+### Linux clean-environment verification
+- Platform: Ubuntu Linux VM.
+- Python: 3.12.3.
+- Created a fresh environment named `.venv-repro`.
+- Installed dependencies using `pip install -r requirements-lock.txt`.
+- `pip check`: No broken requirements found.
+- Pytest regression run: 17 passed, 6 deselected, 1 deprecation warning.
+- The six deselected tests were the two explicitly database-dependent tests and four tests matching the `test_summary` node-ID prefix.
+- Warning originates from Starlette's deprecated `anyio.abc.BlockingPortal` alias.
+
+### Limitations
+- This verifies dependency installation and the selected regression tests on Ubuntu with Python 3.12.3.
+- Windows installation and test verification remain pending.
+- Database-dependent tests were not run because no disposable database was established.
+- Full-suite reproducibility and real database record-count verification remain pending.
