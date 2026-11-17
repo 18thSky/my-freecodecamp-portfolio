@@ -1,9 +1,9 @@
 # QA Lab — New-System Setup and Migration Guide
 
-**Status:** Working draft
+**Status:** Working draft — Linux and Windows dependency setup verified
 **Purpose:** Rebuild the QA Lab on a new Windows system, including VMware, Linux installation, development tools, and repository restoration.
 **Authoritative repository:** `18thSky/my-freecodecamp-portfolio`, branch `main`.
-**Last recorded checkpoint:** `054381e` — `test: cover invalid bug API request bodies`.
+**Last recorded checkpoint:** `3b9d3cb` — `chore: pin QA lab dependencies for reproducibility`.
 
 > Verify current installer versions and licensing terms on official vendor sites. Never commit passwords, tokens, private keys, or populated `.env` files.
 
@@ -364,4 +364,33 @@ Update this guide as the actual system is built. Record real versions, settings,
 
 **Primary repository:** https://github.com/18thSky/my-freecodecamp-portfolio
 **Current branch:** `main`
-**Last recorded commit:** `054381e`
+**Last recorded commit:** `3b9d3cb`
+
+## 19. Cross-platform dependency verification — 17 November 2026
+
+### Linux VM
+- Python 3.12.3; environment: `.venv-repro`.
+- Installed all 25 packages from `requirements-lock.txt`.
+- `pip check`: No broken requirements found.
+- Safe regression tests: 17 passed, 6 deselected, 1 warning.
+
+### Windows host
+- Python 3.11.0; environment: `.venv`.
+- Created using `py -3.11 -m venv .venv`.
+- Installed all 25 packages from `requirements-lock.txt`.
+- `pip check`: No broken requirements found.
+- Safe regression tests: 17 passed, 6 deselected, 1 warning.
+
+### Test scope and limitations
+- Both systems ran the same safe regression selection.
+- The six deselected tests are `test_get_bugs`, `test_create_valid_bug`, and all four tests matching the `test_summary` prefix.
+- Both runs reported the Starlette/AnyIO BlockingPortal deprecation warning; neither had failures.
+- These results do not establish that the full suite passes.
+- Database-backed tests and before/after row-count verification remain pending until a disposable database is positively identified.
+- Linux and Windows used different Python minor versions; this is cross-version compatibility evidence.
+
+### Current checkpoint
+- Linux and Windows dependency installation and safe regression tests are verified.
+- Windows remains authoritative for Git commits and pushes.
+- Do not commit virtual environments, generated cache files, or unrelated changes.
+- Next database-dependent milestone: verify invalid POST requests do not create records using an isolated disposable database.
